@@ -38,6 +38,10 @@ struct _3COptions _3COpts;
 
 static CompilationDatabase *CurrCompDB = nullptr;
 static tooling::CommandLineArguments SourceFiles;
+bool DisableCCTypeChecker;
+std::string OutputPostfix;
+
+void DumpAnalysisResultsToJson(ProgramInfo &I, llvm::raw_ostream &O);
 
 // _3CDiagnosticConsumer is a wrapper DiagnosticConsumer that delays the
 // EndSourceFile callback until 3C's analysis is complete, making it possible to
@@ -723,6 +727,44 @@ bool _3CInterface::dumpStats() {
       PerWildPtrInfo.close();
     }
   }
+  return isSuccessfulSoFar();
+}
+
+ArgumentsAdjuster getIgnoreCheckedPointerAdjuster() {
+  return [](const CommandLineArguments &Args, StringRef /*unused*/) {
+    CommandLineArguments AdjustedArgs;
+    bool HasAdjuster = false;
+    for (size_t i = 0, e = Args.size(); i < e; ++i) {
+      StringRef Arg = Args[i];
+      AdjustedArgs.push_back(Args[i]);
+      if (Arg == "-f3c-tool") {
+        HasAdjuster = true;
+        break;
+      }
+    }
+    if (!DisableCCTypeChecker && !HasAdjuster)
+      AdjustedArgs.push_back("-f3c-tool");
+    return AdjustedArgs;
+  };
+}
+
+bool
+_3CInterface::WriteArrayConversionAndBoundsToJson(
+  const std::string &JsonFile) {
+  std::lock_guard<std::mutex> Lock(InterfaceMutex);
+
+  // Rewrite the input files
+  RewriteConsumer RC = RewriteConsumer(*GlobalProgramInfo);
+  for (auto &TU : ASTs)
+    RC.HandleTranslationUnit(TU->getASTContext());
+
+  std::error_code Ec;
+  llvm::raw_fd_ostream OutputJson(JsonFile, Ec);
+  if (!OutputJson.has_error()) {
+    DumpAnalysisResultsToJson(*GlobalProgramInfo, OutputJson);
+    OutputJson.close();
+  }
+
   return isSuccessfulSoFar();
 }
 

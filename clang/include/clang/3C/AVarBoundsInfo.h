@@ -162,7 +162,7 @@ public:
   // Count Bounds, i.e., count(i).
   bool hasPotentialCountBounds(BoundsKey PtrBK);
   std::set<BoundsKey> &getPotentialBounds(BoundsKey PtrBK);
-  void addPotentialBounds(BoundsKey BK, const std::set<BoundsKey> &PotK);
+  void addPotentialBounds(BoundsKey BK, const std::set<BoundsKey> &PotK, bool Replace);
 
   // Count Bounds Plus one, i.e., count(i+1).
   bool hasPotentialCountPOneBounds(BoundsKey PtrBK);
@@ -207,7 +207,8 @@ public:
   ABounds *getBounds(BoundsKey L, BoundsPriority ReqP = Invalid,
                      BoundsPriority *RetP = nullptr);
   void updatePotentialCountBounds(BoundsKey BK,
-                                  const std::set<BoundsKey> &CntBK);
+                                  const std::set<BoundsKey> &CntBK, bool Replace);
+  bool hasPotentialCountBounds(BoundsKey BK);
   void updatePotentialCountPOneBounds(BoundsKey BK,
                                       const std::set<BoundsKey> &CntBK);
 
@@ -410,6 +411,9 @@ private:
   AVarBoundsStats BoundsInferStats;
   // Information about potential bounds.
   PotentialBoundsInfo PotBoundsInfo;
+  // This is the map of pointer variable bounds key and set of bounds key
+  // which can be the count bounds.
+  std::map<BoundsKey, std::set<BoundsKey>> PotentialCntBounds;
   // Context-sensitive bounds key handler
   CtxSensitiveBoundsKeyHandler CSBKeyHandler;
 

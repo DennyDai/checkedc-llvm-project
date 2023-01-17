@@ -409,8 +409,8 @@ bool AvarBoundsInference::predictBounds(BoundsKey K,
           }
         }
       }
-    } else if (IsFuncRet || (BKsFailedFlowInference.find(NBK) !=
-                             BKsFailedFlowInference.end())) {
+    } else if (IsFuncRet/*|| (BKsFailedFlowInference.find(NBK) !=
+                             BKsFailedFlowInference.end())*/) {
 
       // If this is a function return we should have bounds from all
       // neighbours.
@@ -832,9 +832,12 @@ std::set<BoundsKey> &PotentialBoundsInfo::getPotentialBounds(BoundsKey PtrBK) {
 }
 
 void PotentialBoundsInfo::addPotentialBounds(BoundsKey BK,
-                                             const std::set<BoundsKey> &PotK) {
+                                             const std::set<BoundsKey> &PotK,
+                                             bool Replace) {
   if (!PotK.empty()) {
     auto &TmpK = PotentialCntBounds[BK];
+    if (Replace)
+      TmpK.clear();
     TmpK.insert(PotK.begin(), PotK.end());
   }
 }
@@ -998,8 +1001,13 @@ bool AVarBoundsInfo::mergeBounds(BoundsKey L, BoundsPriority P, ABounds *B) {
       removeBounds(L);
     }
   } else {
-    BInfo[L][P] = B;
-    RetVal = true;
+    auto *DSDs = this->getProgramVar(B->getLengthKey());
+    if (DSDs->isNumConstant() && DSDs->getVarName() == "0") {
+      // avoid
+    } else {
+      BInfo[L][P] = B;
+      RetVal = true;
+    }
   }
   return RetVal;
 }
@@ -1060,8 +1068,16 @@ ABounds *AVarBoundsInfo::getBounds(BoundsKey L, BoundsPriority ReqP,
 }
 
 void AVarBoundsInfo::updatePotentialCountBounds(
-    BoundsKey BK, const std::set<BoundsKey> &CntBK) {
-  PotBoundsInfo.addPotentialBounds(BK, CntBK);
+    BoundsKey BK, const std::set<BoundsKey> &CntBK, bool Replace) {
+  PotBoundsInfo.addPotentialBounds(BK, CntBK, Replace);
+}
+
+bool AVarBoundsInfo::hasPotentialCountBounds(BoundsKey BK) {
+  bool RetVal = false;
+  if (PotentialCntBounds.find(BK) != PotentialCntBounds.end()) {
+    RetVal = !PotentialCntBounds[BK].empty();
+  }
+  return RetVal;
 }
 
 void AVarBoundsInfo::updatePotentialCountPOneBounds(

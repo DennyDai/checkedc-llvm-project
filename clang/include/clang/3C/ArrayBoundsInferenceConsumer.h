@@ -46,6 +46,7 @@ public:
 
 private:
   bool isPotentialLengthVar(ParmVarDecl *PVD);
+  bool needHeuristics(BoundsKey Bkey);
   LocalVarABVisitor *ParamInfo;
   ASTContext *Context;
   ProgramInfo &Info;

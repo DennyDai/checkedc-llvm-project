@@ -224,4 +224,16 @@ void rewriteSourceRange(Rewriter &R, const CharSourceRange &Range,
 void rewriteSourceRange(Rewriter &R, const SourceRange &Range,
                         const std::string &NewText, bool ErrFail = true);
 
+class DeclToJsonConsumer : public ASTConsumer {
+public:
+  explicit DeclToJsonConsumer(ProgramInfo &I, std::string &OutputFile) :
+    Info(I), OutputF(OutputFile) {}
+
+  virtual void HandleTranslationUnit(ASTContext &C);
+
+private:
+  ProgramInfo &Info;
+  std::string &OutputF;
+};
+
 #endif // LLVM_CLANG_3C_REWRITEUTILS_H

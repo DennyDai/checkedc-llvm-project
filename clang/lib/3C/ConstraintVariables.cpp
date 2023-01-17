@@ -568,7 +568,7 @@ std::string PointerVariableConstraint::tryExtractBaseType(
     }
     if (!TL.isNull()) {
       TypeLoc BaseLoc = getBaseTypeLoc(TL);
-      // Only proceed if the base type location is not null, amd it is not a
+      // Only proceed if the base type location is not null, and it is not a
       // typedef type location.
       if (!BaseLoc.isNull() && BaseLoc.getAs<TypedefTypeLoc>().isNull()) {
         SourceRange SR = BaseLoc.getSourceRange();
@@ -971,6 +971,66 @@ FunctionVariableConstraint::FunctionVariableConstraint(FVConstraint *Ot)
     Hasproto(Ot->Hasproto), Hasbody(Ot->Hasbody), IsStatic(Ot->IsStatic),
     Parent(Ot), IsFunctionPtr(Ot->IsFunctionPtr), TypeParams(Ot->TypeParams) {
   this->HasEqArgumentConstraints = Ot->HasEqArgumentConstraints;
+}
+
+bool FunctionVariableConstraint::hasPtyArr(const EnvironmentMap &E,
+                                           int AIdx) const {
+  return ReturnVar.ExternalConstraint->hasPtyArr(E, AIdx);
+}
+
+bool FunctionVariableConstraint::hasPtyNtArr(const EnvironmentMap &E,
+                                             int AIdx) const {
+  return ReturnVar.ExternalConstraint->hasPtyNtArr(E, AIdx);
+}
+
+const ConstAtom *
+PointerVariableConstraint::getPtySolution(const Atom *A,
+                                          const EnvironmentMap &E) const {
+  const ConstAtom *CS = nullptr;
+  if (const ConstAtom *CA = dyn_cast<ConstAtom>(A)) {
+    CS = CA;
+  } else if (const VarAtom *VA = dyn_cast<VarAtom>(A)) {
+    // If this is a VarAtom?, we need to fetch ptr solution.
+    CS = E.at(const_cast<VarAtom*>(VA)).second;
+  }
+  assert(CS != nullptr && "Atom should be either const or var");
+  return CS;
+}
+
+bool PointerVariableConstraint::hasPtyArr(const EnvironmentMap &E,
+                                          int AIdx) const {
+  int VarIdx = 0;
+  for (const auto &C : Vars) {
+    const ConstAtom *CS = getPtySolution(C, E);
+    if (isa<ArrAtom>(CS))
+      return true;
+    if (VarIdx == AIdx)
+      break;
+    VarIdx++;
+  }
+
+  if (FV)
+    return FV->hasPtyArr(E, AIdx);
+
+  return false;
+}
+
+bool PointerVariableConstraint::hasPtyNtArr(const EnvironmentMap &E,
+                                            int AIdx) const {
+  int VarIdx = 0;
+  for (const auto &C : Vars) {
+    const ConstAtom *CS = getPtySolution(C, E);
+    if (isa<NTArrAtom>(CS))
+      return true;
+    if (VarIdx == AIdx)
+      break;
+    VarIdx++;
+  }
+
+  if (FV)
+    return FV->hasPtyNtArr(E, AIdx);
+
+  return false;
 }
 
 // This describes a function, either a function pointer or a function

@@ -44,6 +44,11 @@ protected:
 
 typedef std::pair<CVarSet, BKeySet> CSetBkeyPair;
 
+typedef std::tuple<std::string, bool, std::string> FuncKeyTy;
+typedef std::tuple<std::string, unsigned, std::string> BndsTy;
+typedef std::tuple<unsigned, std::string, std::set<unsigned>, BndsTy> ArrPtrInfoTy;
+
+
 // The pair of CVs are the type param constraint and an optional
 // constraint used to get the generic index. A better solution would have
 // generic constraints saved within ConstraintVariables, but those don't
@@ -80,6 +85,13 @@ public:
 
   typedef std::map<std::string, FVConstraint *> ExternalFunctionMapType;
   typedef std::map<std::string, ExternalFunctionMapType> StaticFunctionMapType;
+
+  std::map<std::string, std::set<ArrPtrInfoTy>> StArrPtrs;
+  std::map<std::string, std::set<ArrPtrInfoTy>> StNtArrPtrs;
+  std::map<FuncKeyTy, std::set<ArrPtrInfoTy>> FnArrPtrs;
+  std::map<FuncKeyTy, std::set<ArrPtrInfoTy>> FnNtArrPtrs;
+  std::map<std::string, std::set<ArrPtrInfoTy>> GlobalArrPtrs;
+  std::map<std::string, std::set<ArrPtrInfoTy>> GlobalNtArrPtrs;
 
   ProgramInfo();
   virtual ~ProgramInfo();

@@ -87,6 +87,9 @@ public:
   // to disk
   bool writeAllConvertedFilesToDisk();
 
+  // Write conversion results to json.
+  bool WriteArrayConversionAndBoundsToJson(const std::string &FilePath);
+
   // Dump all stats related to performance.
   bool dumpStats();
 

@@ -89,7 +89,7 @@ static bool hasLengthKeyword(std::string VarName) {
 // Check if the provided constraint variable is an array and it needs bounds.
 static bool needArrayBounds(const ConstraintVariable *CV,
                             const EnvironmentMap &E) {
-  if (CV->hasArr(E, 0)) {
+  if (CV->hasPtyArr(E, 0)) {
     const PVConstraint *PV = dyn_cast<PVConstraint>(CV);
     return !PV || PV->isTopAtomUnsizedArr();
   }
@@ -98,7 +98,7 @@ static bool needArrayBounds(const ConstraintVariable *CV,
 
 static bool needNTArrayBounds(const ConstraintVariable *CV,
                               const EnvironmentMap &E) {
-  if (CV->hasNtArr(E, 0)) {
+  if (CV->hasPtyNtArr(E, 0)) {
     const PVConstraint *PV = dyn_cast<PVConstraint>(CV);
     return !PV || PV->isTopAtomUnsizedArr();
   }
@@ -373,6 +373,20 @@ bool GlobalABVisitor::isPotentialLengthVar(ParmVarDecl *PVD) {
   return false;
 }
 
+bool GlobalABVisitor::needHeuristics(BoundsKey Bkey) {
+  auto &ABInfo = Info.getABoundsInfo();
+  BoundsPriority BPrio = BoundsPriority::Invalid;
+  auto *KBnds = ABInfo.getBounds(Bkey, BoundsPriority::Invalid, &BPrio);
+  if (!KBnds) {
+    return true;
+  }
+  if (BPrio == BoundsPriority::FlowInferred) {
+    auto *PVar = ABInfo.getProgramVar(KBnds->getLengthKey());
+    return PVar && PVar->isNumConstant();
+  }
+  return false;
+}
+
 // This handles the length based heuristics for structure fields.
 bool GlobalABVisitor::VisitRecordDecl(RecordDecl *RD) {
   // For each of the struct or union types.
@@ -395,7 +409,7 @@ bool GlobalABVisitor::VisitRecordDecl(RecordDecl *RD) {
       // Is this an array field and has no declared bounds?
       if (needArrayBounds(FldDecl, Info, Context) &&
           tryGetBoundsKeyVar(FldDecl, FldKey, Info, Context) &&
-          !ABInfo.getBounds(FldKey))
+          needHeuristics(FldKey))
         IdentifiedArrVars.insert(std::make_pair(FldName, FldKey));
     }
 
@@ -459,7 +473,7 @@ bool GlobalABVisitor::VisitFunctionDecl(FunctionDecl *FD) {
 
           // Here, we are using heuristics. So we only use heuristics when
           // there are no bounds already computed.
-          if (!ABInfo.getBounds(PK)) {
+          if (needHeuristics(PK)) {
             PVConstraint *ParamCV = FV->getExternalParam(I);
             const EnvironmentMap &Env = Info.getConstraints().getVariables();
             // Is this an NTArray?
@@ -485,12 +499,6 @@ bool GlobalABVisitor::VisitFunctionDecl(FunctionDecl *FD) {
           // Then most likely this will be a length field.
           unsigned PIdx = ArrParamPair.first;
           BoundsKey PBKey = ArrParamPair.second.second;
-          if (LengthParams.find(PIdx + 1) != LengthParams.end()) {
-            ABounds *PBounds = new CountBound(LengthParams[PIdx + 1].second);
-            ABInfo.replaceBounds(PBKey, Heuristics, PBounds);
-            ABStats.NeighbourParamMatch.insert(PBKey);
-            continue;
-          }
 
           for (auto &LenParamPair : LengthParams) {
             // If the name of the length field matches.
@@ -502,14 +510,29 @@ bool GlobalABVisitor::VisitFunctionDecl(FunctionDecl *FD) {
               ABStats.NamePrefixMatch.insert(PBKey);
               break;
             }
+          }
+          
+          if (!FoundLen) {
 
-            if (nameSubStringMatch(ArrParamPair.second.first,
-                                   LenParamPair.second.first)) {
-              FoundLen = true;
-              ABounds *PBounds = new CountBound(LenParamPair.second.second);
+            // If this is right next to the array param?
+            // Then most likely this will be a length field.
+            if (LengthParams.find(PIdx + 1) != LengthParams.end()) {
+              ABounds *PBounds = new CountBound(LengthParams[PIdx + 1].second);
               ABInfo.replaceBounds(PBKey, Heuristics, PBounds);
-              ABStats.NamePrefixMatch.insert(PBKey);
+              ABStats.NeighbourParamMatch.insert(PBKey);
               continue;
+            }
+
+            for (auto &LenParamPair : LengthParams) {
+
+              if (nameSubStringMatch(ArrParamPair.second.first,
+                                     LenParamPair.second.first)) {
+                FoundLen = true;
+                ABounds *PBounds = new CountBound(LenParamPair.second.second);
+                ABInfo.replaceBounds(PBKey, Heuristics, PBounds);
+                ABStats.NamePrefixMatch.insert(PBKey);
+                break;
+              }
             }
           }
 
@@ -557,7 +580,7 @@ void LocalVarABVisitor::handleAssignment(BoundsKey LK, QualType LHSType,
   handleAllocatorCall(LHSType, LK, RHS, Info, Context);
   clang::StringLiteral *SL =
       dyn_cast_or_null<clang::StringLiteral>(RHS->IgnoreParenCasts());
-  if (SL != nullptr) {
+  if (SL != nullptr && SL->getByteLength() > 0) {
     ABounds *ByBounds =
         new ByteBound(ABoundsInfo.getConstKey(SL->getByteLength()));
     if (!ABoundsInfo.mergeBounds(LK, Allocator, ByBounds)) {
@@ -858,7 +881,7 @@ void LengthVarInference::VisitArraySubscriptExpr(ArraySubscriptExpr *ASE) {
         // Collect the possible length bounds keys.
         CV.TraverseStmt(CDGNode->getTerminatorStmt());
       }
-      ABI.updatePotentialCountBounds(BasePtr, CV.getPossibleBounds());
+      ABI.updatePotentialCountBounds(BasePtr, CV.getPossibleBounds(), true);
     } else {
       ABI.updatePotentialCountPOneBounds(BasePtr, {IdxKey});
     }

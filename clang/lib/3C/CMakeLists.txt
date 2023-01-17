@@ -42,6 +42,7 @@ add_clang_library(clang3C
   ConstraintsGraph.cpp
   ConstraintVariables.cpp
   CtxSensAVarBounds.cpp
+  DeclJsonRewriter.cpp
   DeclRewriter.cpp
   IntermediateToolHook.cpp
   LowerBoundAssignment.cpp

@@ -54,6 +54,8 @@ CVarSet ConstraintResolver::handleDeref(CVarSet T) {
   CVarSet DerefVars;
   for (ConstraintVariable *CV : T) {
     PVConstraint *PVC = cast<PVConstraint>(CV);
+    if (PVC == nullptr)
+      continue;
     if (!PVC->getCvars().empty())
       DerefVars.insert(PointerVariableConstraint::derefPVConstraint(PVC));
   }
@@ -212,6 +214,8 @@ CSetBkeyPair ConstraintResolver::getExprConstraintVars(Expr *E) {
     // x.f
     if (MemberExpr *ME = dyn_cast<MemberExpr>(E)) {
       CVarOption CV = Info.getVariable(ME->getMemberDecl(), Context);
+      if (!CV.hasValue())
+        return EmptyCSBKeySet;
       assert("Declaration without constraint variable?" && CV.hasValue());
       CVarSet MECSet = {&CV.getValue()};
       // Get Context sensitive bounds key for field access.
@@ -240,48 +244,49 @@ CSetBkeyPair ConstraintResolver::getExprConstraintVars(Expr *E) {
       QualType SubTypE = IE->getSubExpr()->getType();
       auto CVs = getExprConstraintVars(IE->getSubExpr());
       // If TypE is a pointer type, and the cast is unsafe, return WildPtr.
-      if (TypE->isPointerType() &&
-          !(SubTypE->isFunctionType() || SubTypE->isArrayType() ||
-            SubTypE->isVoidPointerType()) &&
-          !isCastSafe(TypE, SubTypE)) {
-        CVarSet WildCVar = getInvalidCastPVCons(IE);
-        auto Rsn = ReasonLoc("Unsafe cast",ExprPSL);
-        constrainConsVarGeq(CVs.first, WildCVar, CS, Rsn, Safe_to_Wild,
-                            false, &Info);
-        Ret = std::make_pair(WildCVar, CVs.second);
-      } else {
-        // Else, return sub-expression's result.
-        Ret = CVs;
-      }
+      // if (TypE->isPointerType() &&
+      //     !(SubTypE->isFunctionType() || SubTypE->isArrayType() ||
+      //       SubTypE->isVoidPointerType()) &&
+      //     !isCastSafe(TypE, SubTypE)) {
+      //   CVarSet WildCVar = getInvalidCastPVCons(IE);
+      //   auto Rsn = ReasonLoc("Unsafe cast",ExprPSL);
+      //   constrainConsVarGeq(CVs.first, WildCVar, CS, Rsn, Safe_to_Wild,
+      //                       false, &Info);
+      //   Ret = std::make_pair(WildCVar, CVs.second);
+      // } else {
+      //   // Else, return sub-expression's result.
+      Ret = CVs;
+      // }
     } else if (ExplicitCastExpr *ECE = dyn_cast<ExplicitCastExpr>(E)) {
       assert(ECE->getType() == TypE);
       Expr *TmpE = ECE->getSubExpr();
+      Ret = getExprConstraintVars(TmpE);
       // Is cast internally safe? Return WILD if not.
       // If the cast is NULL, it will otherwise seem invalid, but we want to
       // handle it as usual so the type in the cast can be rewritten.
-      auto Rsn = ReasonLoc("Explicit cast", ExprPSL);
-      if (!isNULLExpression(ECE, *Context) && TypE->isPointerType() &&
-          !isCastSafe(TypE, TmpE->getType()) && !isCastofGeneric(ECE)) {
-        CVarSet Vars = getExprConstraintVarsSet(TmpE);
-        Ret = pairWithEmptyBkey(getInvalidCastPVCons(ECE));
-        constrainConsVarGeq(Vars, Ret.first, CS, Rsn, Safe_to_Wild, false,
-                            &Info);
-        // NB: Expression ECE itself handled in
-        // ConstraintBuilder::FunctionVisitor.
-      } else {
-        CVarSet Vars = getExprConstraintVarsSet(TmpE);
-        // PVConstraint introduced for explicit cast so they can be rewritten.
-        // Pretty much the same idea as CompoundLiteralExpr.
-        PVConstraint *P = getRewritablePVConstraint(ECE);
-        Ret = pairWithEmptyBkey({P});
-        // ConstraintVars for TmpE when ECE is NULL will be WILD, so
-        // constraining GEQ these vars would be the cast always be WILD.
-        if (!isNULLExpression(ECE, *Context)) {
-          PersistentSourceLoc PL = PersistentSourceLoc::mkPSL(ECE, *Context);
-          constrainConsVarGeq(P, Vars, Info.getConstraints(), Rsn, Same_to_Same,
-                              false, &Info);
-        }
-      }
+      // auto Rsn = ReasonLoc("Explicit cast", ExprPSL);
+      // if (!isNULLExpression(ECE, *Context) && TypE->isPointerType() &&
+      //     !isCastSafe(TypE, TmpE->getType()) && !isCastofGeneric(ECE)) {
+      //   CVarSet Vars = getExprConstraintVarsSet(TmpE);
+      //   Ret = pairWithEmptyBkey(getInvalidCastPVCons(ECE));
+      //   constrainConsVarGeq(Vars, Ret.first, CS, Rsn, Safe_to_Wild, false,
+      //                       &Info);
+      //   // NB: Expression ECE itself handled in
+      //   // ConstraintBuilder::FunctionVisitor.
+      // } else {
+      //   CVarSet Vars = getExprConstraintVarsSet(TmpE);
+      //   // PVConstraint introduced for explicit cast so they can be rewritten.
+      //   // Pretty much the same idea as CompoundLiteralExpr.
+      //   PVConstraint *P = getRewritablePVConstraint(ECE);
+      //   Ret = pairWithEmptyBkey({P});
+      //   // ConstraintVars for TmpE when ECE is NULL will be WILD, so
+      //   // constraining GEQ these vars would be the cast always be WILD.
+      //   if (!isNULLExpression(ECE, *Context)) {
+      //     PersistentSourceLoc PL = PersistentSourceLoc::mkPSL(ECE, *Context);
+      //     constrainConsVarGeq(P, Vars, Info.getConstraints(), Rsn, Same_to_Same,
+      //                         false, &Info);
+      //   }
+      // }
     }
     // x = y, x+y, x+=y, etc.
     else if (BinaryOperator *BO = dyn_cast<BinaryOperator>(E)) {

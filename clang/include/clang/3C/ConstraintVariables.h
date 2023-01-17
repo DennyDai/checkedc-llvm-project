@@ -181,6 +181,8 @@ public:
   virtual bool hasWild(const EnvironmentMap &E, int AIdx = -1) const = 0;
   virtual bool hasArr(const EnvironmentMap &E, int AIdx = -1) const = 0;
   virtual bool hasNtArr(const EnvironmentMap &E, int AIdx = -1) const = 0;
+  virtual bool hasPtyArr(const EnvironmentMap &E, int AIdx = -1) const = 0;
+  virtual bool hasPtyNtArr(const EnvironmentMap &E, int AIdx = -1) const = 0;
 
   // Force use of equality constraints in function calls for this CV
   virtual void equateArgumentConstraints(ProgramInfo &I, ReasonLoc &Rsn) = 0;
@@ -377,6 +379,8 @@ private:
   std::set<ConstraintVariable *> ArgumentConstraints;
   // Get solution for the atom of a pointer.
   const ConstAtom *getSolution(const Atom *A, const EnvironmentMap &E) const;
+  // Get ptyp solution for the atom of a pointer.
+  const ConstAtom *getPtySolution(const Atom *A, const EnvironmentMap &E) const;
 
   // Construct a copy of this variable, reusing all VarAtoms. To instead obtains
   // a copy of the constraint variable which contains fresh VarAtoms (allowing
@@ -543,6 +547,8 @@ public:
   bool hasWild(const EnvironmentMap &E, int AIdx = -1) const override;
   bool hasArr(const EnvironmentMap &E, int AIdx = -1) const override;
   bool hasNtArr(const EnvironmentMap &E, int AIdx = -1) const override;
+  bool hasPtyArr(const EnvironmentMap &E, int AIdx = -1) const override;
+  bool hasPtyNtArr(const EnvironmentMap &E, int AIdx = -1) const override;
 
   bool isNtConstantArr(const EnvironmentMap &E) const;
   bool isConstantArr() const;
@@ -743,6 +749,8 @@ public:
   bool hasWild(const EnvironmentMap &E, int AIdx = -1) const override;
   bool hasArr(const EnvironmentMap &E, int AIdx = -1) const override;
   bool hasNtArr(const EnvironmentMap &E, int AIdx = -1) const override;
+  bool hasPtyArr(const EnvironmentMap &E, int AIdx = -1) const override;
+  bool hasPtyNtArr(const EnvironmentMap &E, int AIdx = -1) const override;
 
   void equateArgumentConstraints(ProgramInfo &P, ReasonLoc &Rsn) override;
 

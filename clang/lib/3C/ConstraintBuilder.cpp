@@ -139,6 +139,19 @@ public:
             } else
               ArgumentConstraints = CB.getExprConstraintVars(A);
 
+            if (FuncName == "memcpy" && I < 2) {
+              if (I < 2) {
+                auto *AI = A->IgnoreCasts();
+                if (DeclRefExpr *DRE = dyn_cast_or_null<DeclRefExpr>(AI)) {
+                  if (DRE->getType()->isPointerType() &&
+                      DRE->getType()->getPointeeType()->isCharType()) {
+                    constrainVarsTo(ArgumentConstraints.first, CS.getArr(),
+                                    ReasonLoc(ARRAY_REASON, ArgPSL));
+                  }
+                }
+              }
+            }
+
             if (I < TargetFV->numParams()) {
               // Constrain the arg CV to the param CV.
               ConstraintVariable *ParameterDC = TargetFV->getExternalParam(I);
@@ -179,7 +192,7 @@ public:
                   // to the `%s` should be an _Nt_array_ptr
                   // (https://github.com/correctcomputation/checkedc-clang/issues/549).
                   constrainVarsTo(ArgumentConstraints.first, CS.getNTArr(),
-                                  ReasonLoc(NT_ARRAY_REASON,ArgPSL));
+                                  ReasonLoc(NT_ARRAY_REASON, ArgPSL));
                 }
                 if (_3COpts.Verbose) {
                   std::string FuncName = TargetFV->getName();
@@ -318,7 +331,7 @@ private:
       if (ModifyingExpr)
         Info.getABoundsInfo().recordArithmeticOperation(E, &CB);
       constraintInBodyVariable(E, Info.getConstraints().getArr(),
-                               ReasonLoc(ARRAY_REASON,PSL));
+                               ReasonLoc(ARRAY_REASON, PSL));
     }
   }
 
@@ -441,9 +454,10 @@ public:
       assert("Declaration is a definition, but getDefinition() is null?" &&
              Definition);
       FullSourceLoc FL = Context->getFullLoc(Definition->getBeginLoc());
-      if (FL.isValid())
+      if (FL.isValid()) {
         for (auto *const D : Definition->fields())
           addVariable(D);
+      }
     }
     return true;
   }

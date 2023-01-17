@@ -20,9 +20,11 @@ TOTAL_COMMANDS_FILE = os.path.realpath("convert_all.sh")
 
 VSCODE_SETTINGS_JSON = os.path.realpath("settings.json")
 
+VALID_FILE_EXTENSIONS = [".c", ".h"]
+
 # to separate multiple commands in a line
 CMD_SEP = " &&"
-DEFAULT_ARGS = ["-dump-stats"]
+DEFAULT_ARGS = ["-output-postfix=checked", "-alltypes"]
 if os.name == "nt":
     DEFAULT_ARGS.append("-extra-arg-before=--driver-mode=cl")
     CMD_SEP = " ;"
@@ -94,6 +96,15 @@ def getCheckedCArgs(argument_list):
     clang_x_args.append('-w')
     return (clang_x_args, output_filename)
 
+def is_valid_file_extension(file_name):
+    """
+    Checks if the file can be handled by 3c
+    """
+    file_name = str(file_name).lower()
+    for ex in VALID_FILE_EXTENSIONS:
+        if file_name.endswith(ex):
+            return True
+    return False
 
 def tryFixUp(s):
     """
@@ -146,7 +157,7 @@ def run3C(checkedc_bin,
         compiler_x_args = []
         output_filename = None
         target_directory = ""
-        if file_to_add.endswith(".cpp"):
+        if not is_valid_file_extension(file_to_add):
             continue  # Checked C extension doesn't support cpp files yet
 
         # BEAR uses relative paths for 'file' rather than absolute paths. It
@@ -198,6 +209,7 @@ def run3C(checkedc_bin,
         # ...but we need to add -w, as in getCheckedCArgs.
         args.append('-extra-arg=-w')
         args.append('-base-dir="' + compilation_base_dir + '"')
+        args.append('-cccoutput="' + src_file + '.3cresults.json"')
         args.append('-output-dir="' + compilation_base_dir + '/out.checked"')
         args.append(tu.input_filename)
         # run individual commands.
@@ -238,8 +250,10 @@ def run3C(checkedc_bin,
     # Try to choose a name unlikely to collide with anything in any real
     # project.
     args.append('-output-dir="' + compilation_base_dir + '/out.checked"')
-    args.extend(list(set(all_files)))
-    vcodewriter.addClangdArg(list(set(all_files)))
+    all_files = list(set(all_files))
+    all_files.sort()
+    args.extend(all_files)
+    vcodewriter.addClangdArg(all_files)
     vcodewriter.writeJsonFile(VSCODE_SETTINGS_JSON)
 
     f = open(TOTAL_COMMANDS_FILE, 'w')
