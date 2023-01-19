@@ -723,8 +723,9 @@ void addMainFuncHeuristic(ASTContext *C, ProgramInfo &I, FunctionDecl *FD) {
 // i.e., for all I < X expressions, it collects X.
 class ComparisonVisitor : public RecursiveASTVisitor<ComparisonVisitor> {
 public:
-  explicit ComparisonVisitor(ProgramInfo &In, ASTContext *AC, BoundsKey I)
-      : I(In), C(AC), IndxBKey(I), PossibleBounds(), CurrStmt(nullptr) {}
+  explicit ComparisonVisitor(ProgramInfo &In, ASTContext *AC, BoundsKey I,
+                             std::set<BoundsKey> &PossB)
+      : I(In), C(AC), IndxBKey(I), PossibleBounds(PossB), CurrStmt(nullptr) {}
 
   // Here, we save the most recent statement we have visited.
   // This is a way to keep track of the statement to which currently
@@ -867,21 +868,38 @@ void LengthVarInference::VisitArraySubscriptExpr(ArraySubscriptExpr *ASE) {
 
   // Get the bounds key of the base and index.
   BoundsKey BasePtr, IdxKey;
-  if (tryGetValidBoundsKey(BE, BasePtr, I, C) &&
-      tryGetValidBoundsKey(IdxExpr, IdxKey, I, C)) {
-    auto &ABI = I.getABoundsInfo();
-    auto &CDNodes = CDG.getControlDependencies(CurBB);
-    if (!CDNodes.empty()) {
-      // Next try to find all the nodes that the CurBB is
-      // control dependent on.
-      // For each of the control dependent node, check if we are comparing the
-      // index variable with another variable.
-      ComparisonVisitor CV(I, C, IdxKey);
-      for (auto &CDGNode : CDNodes) {
-        // Collect the possible length bounds keys.
-        CV.TraverseStmt(CDGNode->getTerminatorStmt());
+  auto &ABI = I.getABoundsInfo();
+
+  if (tryGetValidBoundsKey(BE, BasePtr, I, C)) {
+    if (tryGetValidBoundsKey(IdxExpr, IdxKey, I, C)) {
+      std::set<BoundsKey> PossibleLens;
+      PossibleLens.clear();
+      ComparisonVisitor CV(I, C, IdxKey, PossibleLens);
+      auto &CDNodes = CDG.getControlDependencies(CurBB);
+      if (!CDNodes.empty()) {
+        // Next try to find all the nodes that the CurBB is
+        // control dependent on.
+        // For each of the control dependent node, check if we are comparing the
+        // index variable with another variable.
+        for (auto &CDGNode : CDNodes) {
+          // Collect the possible length bounds keys.
+          CV.TraverseStmt(CDGNode->getTerminatorStmt());
+        }
+        ABI.updatePotentialCountBounds(BasePtr, CV.getPossibleBounds(), true);
       }
-      ABI.updatePotentialCountBounds(BasePtr, CV.getPossibleBounds(), true);
+    } else if (!ABI.hasPotentialCountBounds(BasePtr)) {
+      // Here, we check for this pattern:
+      // p[l-1] = ... and make l to be the potential bound.
+      // only for parameters.
+      BinaryOperator *BOIdx = dyn_cast_or_null<BinaryOperator>(IdxExpr);
+      if (BOIdx != nullptr && BOIdx->getOpcode() == BinaryOperator::Opcode::BO_Sub) {
+        if (tryGetValidBoundsKey(BOIdx->getLHS(), IdxKey, I, C)) {
+          auto *PVar = ABI.getProgramVar(IdxKey);
+          if (PVar != nullptr && dyn_cast_or_null<FunctionParamScope>(PVar->getScope())) {
+            ABI.updatePotentialCountBounds(BasePtr, {IdxKey});
+          }
+        }
+      }
     } else {
       ABI.updatePotentialCountPOneBounds(BasePtr, {IdxKey});
     }

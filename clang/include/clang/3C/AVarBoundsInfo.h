@@ -207,7 +207,7 @@ public:
   ABounds *getBounds(BoundsKey L, BoundsPriority ReqP = Invalid,
                      BoundsPriority *RetP = nullptr);
   void updatePotentialCountBounds(BoundsKey BK,
-                                  const std::set<BoundsKey> &CntBK, bool Replace);
+                                  const std::set<BoundsKey> &CntBK, bool Replace = false);
   bool hasPotentialCountBounds(BoundsKey BK);
   void updatePotentialCountPOneBounds(BoundsKey BK,
                                       const std::set<BoundsKey> &CntBK);

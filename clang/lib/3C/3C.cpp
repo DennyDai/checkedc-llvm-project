@@ -754,9 +754,9 @@ _3CInterface::WriteArrayConversionAndBoundsToJson(
   std::lock_guard<std::mutex> Lock(InterfaceMutex);
 
   // Rewrite the input files
-  RewriteConsumer RC = RewriteConsumer(*GlobalProgramInfo);
+  DeclToJsonConsumer DC = DeclToJsonConsumer(*GlobalProgramInfo, OutputPostfix);
   for (auto &TU : ASTs)
-    RC.HandleTranslationUnit(TU->getASTContext());
+    DC.HandleTranslationUnit(TU->getASTContext());
 
   std::error_code Ec;
   llvm::raw_fd_ostream OutputJson(JsonFile, Ec);
