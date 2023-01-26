@@ -61,7 +61,7 @@ public:
               std::string BVar = "Invalid";
               unsigned bidx = 0;
               std::string BVarN = "";
-              if (!ArrInds.empty() || !NtArrInds.empty()) {
+              if ((!ArrInds.empty() || !NtArrInds.empty()) && PV->hasBoundsKey()) {
                 BoundsKey PrmBKey = PV->getBoundsKey();
                 ABounds *RB = ABInfo.getBounds(PrmBKey);
                 if (RB != nullptr) {
@@ -158,7 +158,7 @@ public:
                 std::string BVar = "Invalid";
                 unsigned bidx = 0;
                 std::string BVarN = "";
-                if (!ArrInds.empty() || !NtArrInds.empty()) {
+                if ((!ArrInds.empty() || !NtArrInds.empty()) && PV->hasBoundsKey()) {
                   BoundsKey PrmBKey = PV->getBoundsKey();
                   ABounds *RB = ABInfo.getBounds(PrmBKey);
                   if (RB != nullptr) {
@@ -234,7 +234,7 @@ public:
             std::string BVar = "Invalid";
             unsigned bidx = 0;
             std::string BVarN = "";
-            if (!ArrInds.empty() || !NtArrInds.empty()) {
+            if ((!ArrInds.empty() || !NtArrInds.empty()) && PV->hasBoundsKey()) {
               BoundsKey PrmBKey = PV->getBoundsKey();
               ABounds *RB = ABInfo.getBounds(PrmBKey);
               if (RB != nullptr) {
