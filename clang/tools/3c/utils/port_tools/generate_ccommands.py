@@ -24,7 +24,7 @@ VALID_FILE_EXTENSIONS = [".c", ".h"]
 
 # to separate multiple commands in a line
 CMD_SEP = " &&"
-DEFAULT_ARGS = ["-output-postfix=checked", "-alltypes"]
+DEFAULT_ARGS = ["-alltypes"]
 if os.name == "nt":
     DEFAULT_ARGS.append("-extra-arg-before=--driver-mode=cl")
     CMD_SEP = " ;"
@@ -209,7 +209,7 @@ def run3C(checkedc_bin,
         # ...but we need to add -w, as in getCheckedCArgs.
         args.append('-extra-arg=-w')
         args.append('-base-dir="' + compilation_base_dir + '"')
-        args.append('-cccoutput="' + src_file + '.3cresults.json"')
+        args.append('-cccoutput="' + tu.input_filename + '.3cresults.json"')
         args.append('-output-dir="' + compilation_base_dir + '/out.checked"')
         args.append(tu.input_filename)
         # run individual commands.
