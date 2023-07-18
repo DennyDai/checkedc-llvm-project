@@ -101,7 +101,13 @@ public:
                 }
               }
               auto BndsTup = std::make_tuple(BVar, bidx, BVarN);
-              if (!NtArrInds.empty()) {
+              if (!NtArrInds.empty() && !ArrInds.empty()) {
+                auto ToInNtArr = std::make_tuple(i, BaseTypeStr, NtArrInds, BndsTup);
+                Info.FnNtArrPtrs[FuncK].insert(ToInNtArr);
+                auto ToInArr = std::make_tuple(i, BaseTypeStr, ArrInds, BndsTup);
+                Info.FnArrPtrs[FuncK].insert(ToInArr);
+              }
+              else if (!NtArrInds.empty()) {
                 auto ToIn = std::make_tuple(i, BaseTypeStr, NtArrInds, BndsTup);
                 Info.FnNtArrPtrs[FuncK].insert(ToIn);
               } else {
@@ -188,7 +194,13 @@ public:
                   }
                 }
                 auto BndsTup = std::make_tuple(BVar, bidx, BVarN);
-                if (!NtArrInds.empty()) {
+                if (!NtArrInds.empty() && !ArrInds.empty()) {
+                  auto ToInNtArr = std::make_tuple(i, BaseTypeStr, NtArrInds, BndsTup);
+                  Info.StNtArrPtrs[StName].insert(ToInNtArr);
+                  auto ToInArr = std::make_tuple(i, BaseTypeStr, ArrInds, BndsTup);
+                  Info.StArrPtrs[StName].insert(ToInArr);
+                }
+                else if (!NtArrInds.empty()) {
                   auto ToIn = std::make_tuple(i, BaseTypeStr, NtArrInds, BndsTup);
                   Info.StNtArrPtrs[StName].insert(ToIn);
                 } else {
@@ -254,7 +266,13 @@ public:
               }
             }
             auto BndsTup = std::make_tuple(BVar, bidx, BVarN);
-            if (!NtArrInds.empty()) {
+            if (!NtArrInds.empty() && !ArrInds.empty()) {
+              auto ToInNtArr = std::make_tuple(0, BaseTypeStr, NtArrInds, BndsTup);
+              Info.GlobalNtArrPtrs[VName].insert(ToInNtArr);
+              auto ToInArr = std::make_tuple(0, BaseTypeStr, ArrInds, BndsTup);
+              Info.GlobalArrPtrs[VName].insert(ToInArr);
+            }
+            else if (!NtArrInds.empty()) {
               auto ToIn = std::make_tuple(0, BaseTypeStr, NtArrInds, BndsTup);
               Info.GlobalNtArrPtrs[VName].insert(ToIn);
             } else {
