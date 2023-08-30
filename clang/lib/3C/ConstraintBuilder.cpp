@@ -50,6 +50,12 @@ public:
     // Is cast compatible with LHS type?
     QualType SrcT = C->getSubExpr()->getType();
     QualType DstT = C->getType();
+
+    // Only used for keeping track of all casts. So no need for 
+    // below checks?
+    auto TempCVs = CB.getExprConstraintVarsSet(C->getSubExpr());
+    Info.addCastInformation(TempCVs, DstT.getAsString());
+
     if (!CB.isCastofGeneric(C) && !isCastSafe(DstT, SrcT)
       && !Info.hasPersistentConstraints(C, Context)) {
       auto CVs = CB.getExprConstraintVarsSet(C->getSubExpr());

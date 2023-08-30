@@ -102,6 +102,14 @@ void dumpStaticFuncMapJson(const ProgramInfo::StaticFunctionMapType &EMap,
   }
 }
 
+void ProgramInfo::addCastInformation(CVarSet &CVs, const std::string &DataType) {
+  if (CastInformation.find(CVs) == CastInformation.end()) {
+    CastInformation[CVs] = std::set<std::string>({DataType});
+  } else {
+    CastInformation[CVs].insert(DataType);
+  }
+}
+
 void ProgramInfo::print(raw_ostream &O) const {
   CS.print(O);
   O << "\n";

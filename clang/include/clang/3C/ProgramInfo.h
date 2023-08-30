@@ -46,7 +46,7 @@ typedef std::pair<CVarSet, BKeySet> CSetBkeyPair;
 
 typedef std::tuple<std::string, bool, std::string> FuncKeyTy;
 typedef std::tuple<std::string, unsigned, std::string> BndsTy;
-typedef std::tuple<unsigned, std::string, std::set<unsigned>, BndsTy> ArrPtrInfoTy;
+typedef std::tuple<unsigned, std::string, std::set<std::string>, std::set<unsigned>, BndsTy> ArrPtrInfoTy;
 
 
 // The pair of CVs are the type param constraint and an optional
@@ -198,6 +198,10 @@ public:
 
   ProgramMultiDeclsInfo TheMultiDeclsInfo;
 
+  void addCastInformation(CVarSet &Cvs, const std::string &DataType);
+
+  std::map<CVarSet, std::set<std::string>> getCastInformation() { return CastInformation; }
+
 private:
   // List of constraint variables for declarations, indexed by their location in
   // the source. This information persists across invocations of the constraint
@@ -235,6 +239,9 @@ private:
 
   //Performance stats
   PerformanceStats PerfS;
+
+  // Cast Information
+  std::map<CVarSet, std::set<std::string>> CastInformation;
 
   // Constraint system.
   Constraints CS;

@@ -16,6 +16,15 @@
 using namespace llvm;
 using namespace clang;
 
+std::set<std::string> isHavingCast(ProgramInfo &I, ConstraintVariable &CV) {
+  for (auto &CIs : I.getCastInformation()) {
+    if (CIs.first.find(&CV) != CIs.first.end()) {
+      return std::set<std::string>(CIs.second.begin(), CIs.second.end());
+    }
+  }
+  return std::set<std::string>();
+}
+
 class DeclJsonVisitor : public RecursiveASTVisitor<DeclJsonVisitor> {
 public:
   explicit DeclJsonVisitor(ASTContext *Context,
@@ -47,6 +56,7 @@ public:
           std::set<unsigned> NtArrInds;
           if (COpt.hasValue()) {
             ConstraintVariable &CV = COpt.getValue();
+            std::set<std::string> Casts = isHavingCast(Info, CV);
             PVConstraint *PV = dyn_cast_or_null<PVConstraint>(&CV);
             if (PV) {
               ArrInds.clear();
@@ -102,16 +112,16 @@ public:
               }
               auto BndsTup = std::make_tuple(BVar, bidx, BVarN);
               if (!NtArrInds.empty() && !ArrInds.empty()) {
-                auto ToInNtArr = std::make_tuple(i, BaseTypeStr, NtArrInds, BndsTup);
+                auto ToInNtArr = std::make_tuple(i, BaseTypeStr, Casts, NtArrInds, BndsTup);
                 Info.FnNtArrPtrs[FuncK].insert(ToInNtArr);
-                auto ToInArr = std::make_tuple(i, BaseTypeStr, ArrInds, BndsTup);
+                auto ToInArr = std::make_tuple(i, BaseTypeStr, Casts, ArrInds, BndsTup);
                 Info.FnArrPtrs[FuncK].insert(ToInArr);
               }
               else if (!NtArrInds.empty()) {
-                auto ToIn = std::make_tuple(i, BaseTypeStr, NtArrInds, BndsTup);
+                auto ToIn = std::make_tuple(i, BaseTypeStr, Casts, NtArrInds, BndsTup);
                 Info.FnNtArrPtrs[FuncK].insert(ToIn);
               } else {
-                auto ToIn = std::make_tuple(i, BaseTypeStr, ArrInds, BndsTup);
+                auto ToIn = std::make_tuple(i, BaseTypeStr, Casts, ArrInds, BndsTup);
                 Info.FnArrPtrs[FuncK].insert(ToIn);
               }
 
@@ -150,6 +160,7 @@ public:
             std::set<unsigned> NtArrInds;
             if (COpt.hasValue()) {
               ConstraintVariable &CV = COpt.getValue();
+              std::set<std::string> Casts = isHavingCast(Info, CV);
               PVConstraint *PV = dyn_cast_or_null<PVConstraint>(&CV);
               if (PV) {
                 ArrInds.clear();
@@ -195,16 +206,16 @@ public:
                 }
                 auto BndsTup = std::make_tuple(BVar, bidx, BVarN);
                 if (!NtArrInds.empty() && !ArrInds.empty()) {
-                  auto ToInNtArr = std::make_tuple(i, BaseTypeStr, NtArrInds, BndsTup);
+                  auto ToInNtArr = std::make_tuple(i, BaseTypeStr, Casts, NtArrInds, BndsTup);
                   Info.StNtArrPtrs[StName].insert(ToInNtArr);
-                  auto ToInArr = std::make_tuple(i, BaseTypeStr, ArrInds, BndsTup);
+                  auto ToInArr = std::make_tuple(i, BaseTypeStr, Casts, ArrInds, BndsTup);
                   Info.StArrPtrs[StName].insert(ToInArr);
                 }
                 else if (!NtArrInds.empty()) {
-                  auto ToIn = std::make_tuple(i, BaseTypeStr, NtArrInds, BndsTup);
+                  auto ToIn = std::make_tuple(i, BaseTypeStr, Casts, NtArrInds, BndsTup);
                   Info.StNtArrPtrs[StName].insert(ToIn);
                 } else {
-                  auto ToIn = std::make_tuple(i, BaseTypeStr, ArrInds, BndsTup);
+                  auto ToIn = std::make_tuple(i, BaseTypeStr, Casts, ArrInds, BndsTup);
                   Info.StArrPtrs[StName].insert(ToIn);
                 }
               }
@@ -232,6 +243,7 @@ public:
         std::set<unsigned> NtArrInds;
         if (COpt.hasValue()) {
           ConstraintVariable &CV = COpt.getValue();
+          std::set<std::string> Casts = isHavingCast(Info, CV);
           PVConstraint *PV = dyn_cast_or_null<PVConstraint>(&CV);
           if (PV) {
             ArrInds.clear();
@@ -267,16 +279,16 @@ public:
             }
             auto BndsTup = std::make_tuple(BVar, bidx, BVarN);
             if (!NtArrInds.empty() && !ArrInds.empty()) {
-              auto ToInNtArr = std::make_tuple(0, BaseTypeStr, NtArrInds, BndsTup);
+              auto ToInNtArr = std::make_tuple(0, BaseTypeStr, Casts, NtArrInds, BndsTup);
               Info.GlobalNtArrPtrs[VName].insert(ToInNtArr);
-              auto ToInArr = std::make_tuple(0, BaseTypeStr, ArrInds, BndsTup);
+              auto ToInArr = std::make_tuple(0, BaseTypeStr, Casts, ArrInds, BndsTup);
               Info.GlobalArrPtrs[VName].insert(ToInArr);
             }
             else if (!NtArrInds.empty()) {
-              auto ToIn = std::make_tuple(0, BaseTypeStr, NtArrInds, BndsTup);
+              auto ToIn = std::make_tuple(0, BaseTypeStr, Casts, NtArrInds, BndsTup);
               Info.GlobalNtArrPtrs[VName].insert(ToIn);
             } else {
-              auto ToIn = std::make_tuple(0, BaseTypeStr, ArrInds, BndsTup);
+              auto ToIn = std::make_tuple(0, BaseTypeStr, Casts,ArrInds, BndsTup);
               Info.GlobalArrPtrs[VName].insert(ToIn);
             }
 
@@ -317,8 +329,21 @@ static void DumpIndxes(llvm::raw_ostream &O, const std::set<unsigned> &Idx) {
     addC = true;
   }
   O << "]";
-
 }
+
+static void DumpCasts(llvm::raw_ostream &O, const std::set<std::string> &Casts) {
+  bool addC = false;
+  O << "[";
+  for (auto &C : Casts) {
+    if (addC) {
+      O << ",";
+    }
+    O << "\"" << C << "\"";
+    addC = true;
+  }
+  O << "]";
+}
+
 static void DumpBInfo(llvm::raw_ostream &O,
                       const std::tuple<std::string, unsigned, std::string> &B) {
   O << "{";
@@ -347,10 +372,12 @@ void DumpAnalysisResultsToJson(ProgramInfo &I, llvm::raw_ostream &O) {
         O << "\n,";
       }
       O << "{\"ParamNum\":" << std::get<0>(AI)  << ", \"OrigType\":\"" <<
-        std::get<1>(AI) << "\", \"ArrPtrsIdx\":";
-      DumpIndxes(O, std::get<2>(AI));
+        std::get<1>(AI) << "\", \"CastedTypes\":";
+      DumpCasts(O, std::get<2>(AI)); 
+      O <<  ", \"ArrPtrsIdx\":";
+      DumpIndxes(O, std::get<3>(AI));
       O << ", \"BoundsInfo\":";
-      DumpBInfo(O, std::get<3>(AI));
+      DumpBInfo(O, std::get<4>(AI));
       O << "}";
       addC1 = true;
     }
@@ -376,10 +403,12 @@ void DumpAnalysisResultsToJson(ProgramInfo &I, llvm::raw_ostream &O) {
         O << "\n,";
       }
       O << "{\"ParamNum\":" << std::get<0>(AI)  << ", \"OrigType\":\"" <<
-        std::get<1>(AI) << "\", \"ArrPtrsIdx\":";
-      DumpIndxes(O, std::get<2>(AI));
+        std::get<1>(AI) << "\", \"CastedTypes\":";
+      DumpCasts(O, std::get<2>(AI)); 
+      O <<  ", \"ArrPtrsIdx\":";
+      DumpIndxes(O, std::get<3>(AI));
       O << ", \"BoundsInfo\":";
-      DumpBInfo(O, std::get<3>(AI));
+      DumpBInfo(O, std::get<4>(AI));
       O << "}";
       addC1 = true;
     }
@@ -404,10 +433,12 @@ void DumpAnalysisResultsToJson(ProgramInfo &I, llvm::raw_ostream &O) {
         O << "\n,";
       }
       O << "{\"FieldIdx\":" << std::get<0>(AI)  << ", \"OrigType\":\"" <<
-        std::get<1>(AI) << "\", \"ArrPtrsIdx\":";
-      DumpIndxes(O, std::get<2>(AI));
+        std::get<1>(AI) << "\", \"CastedTypes\":";
+      DumpCasts(O, std::get<2>(AI)); 
+      O <<  ", \"ArrPtrsIdx\":";
+      DumpIndxes(O, std::get<3>(AI));
       O << ", \"BoundsInfo\":";
-      DumpBInfo(O, std::get<3>(AI));
+      DumpBInfo(O, std::get<4>(AI));
       O << "}";
       addC1 = true;
     }
@@ -433,10 +464,12 @@ void DumpAnalysisResultsToJson(ProgramInfo &I, llvm::raw_ostream &O) {
         O << "\n,";
       }
       O << "{\"FieldIdx\":" << std::get<0>(AI)  << ", \"OrigType\":\"" <<
-        std::get<1>(AI) << "\", \"ArrPtrsIdx\":";
-      DumpIndxes(O, std::get<2>(AI));
+        std::get<1>(AI) << "\", \"CastedTypes\":";
+      DumpCasts(O, std::get<2>(AI)); 
+      O <<  ", \"ArrPtrsIdx\":";
+      DumpIndxes(O, std::get<3>(AI));
       O << ", \"BoundsInfo\":";
-      DumpBInfo(O, std::get<3>(AI));
+      DumpBInfo(O, std::get<4>(AI));
       O << "}";
       addC1 = true;
     }
@@ -462,10 +495,12 @@ void DumpAnalysisResultsToJson(ProgramInfo &I, llvm::raw_ostream &O) {
         O << "\n,";
       }
       O << "{\"ParamNum\":" << std::get<0>(AI)  << ", \"OrigType\":\"" <<
-        std::get<1>(AI) << "\", \"ArrPtrsIdx\":";
-      DumpIndxes(O, std::get<2>(AI));
+        std::get<1>(AI) << "\", \"CastedTypes\":";
+      DumpCasts(O, std::get<2>(AI)); 
+      O <<  ", \"ArrPtrsIdx\":";
+      DumpIndxes(O, std::get<3>(AI));
       O << ", \"BoundsInfo\":";
-      DumpBInfo(O, std::get<3>(AI));
+      DumpBInfo(O, std::get<4>(AI));
       O << "}";
       addC1 = true;
     }
@@ -491,10 +526,12 @@ void DumpAnalysisResultsToJson(ProgramInfo &I, llvm::raw_ostream &O) {
         O << "\n,";
       }
       O << "{\"ParamNum\":" << std::get<0>(AI)  << ", \"OrigType\":\"" <<
-        std::get<1>(AI) << "\", \"ArrPtrsIdx\":";
-      DumpIndxes(O, std::get<2>(AI));
+        std::get<1>(AI) << "\", \"CastedTypes\":";
+      DumpCasts(O, std::get<2>(AI)); 
+      O <<  ", \"ArrPtrsIdx\":";
+      DumpIndxes(O, std::get<3>(AI));
       O << ", \"BoundsInfo\":";
-      DumpBInfo(O, std::get<3>(AI));
+      DumpBInfo(O, std::get<4>(AI));
       O << "}";
       addC1 = true;
     }
